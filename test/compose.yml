@@ -1,0 +1,121 @@
+# Lokale Testinstanz: Seafile Pro 13 + LDAP (lldap) für die Archivierung ausgeschiedener User.
+# Service-Definitionen übernommen aus seafile-demo-recreate/compose, ohne Caddy/TLS/Lizenz.
+services:
+  mariadb:
+    image: mariadb:11.8.3-noble
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:?}
+      - MARIADB_AUTO_UPGRADE=1
+    volumes:
+      - mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:8.2.2-bookworm
+    command: ["sh", "-c", "redis-server --requirepass \"$${REDIS_PASSWORD}\""]
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?}
+
+  lldap:
+    image: lldap/lldap:stable
+    environment:
+      - LLDAP_JWT_SECRET=${LLDAP_JWT_SECRET:?}
+      - LLDAP_KEY_SEED=${LLDAP_KEY_SEED:?}
+      - LLDAP_LDAP_BASE_DN=dc=example,dc=com
+      - LLDAP_LDAP_USER_PASS=${LLDAP_ADMIN_PASSWORD:?}
+    ports:
+      - "127.0.0.1:17170:17170"   # Web-UI
+    volumes:
+      - lldap:/data
+
+  seafile:
+    image: ${SEAFILE_IMAGE}
+    volumes:
+      - seafile:/shared
+      - ./archiv:/archiv
+    environment:
+      - TIME_ZONE=Europe/Berlin
+      - INIT_SEAFILE_MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - SEAFILE_MYSQL_DB_HOST=mariadb
+      - SEAFILE_MYSQL_DB_PORT=3306
+      - SEAFILE_MYSQL_DB_USER=root
+      - SEAFILE_MYSQL_DB_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - SEAFILE_MYSQL_DB_CCNET_DB_NAME=ccnet_db
+      - SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=seafile_db
+      - SEAFILE_MYSQL_DB_SEAHUB_DB_NAME=seahub_db
+      - INIT_SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL}
+      - INIT_SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD}
+      - SEAFILE_SERVER_HOSTNAME=127.0.0.1:${SEAFILE_PORT}
+      - SEAFILE_SERVER_PROTOCOL=http
+      - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
+      - SEAFILE_LOG_TO_STDOUT=true
+      - ENABLE_GO_FILESERVER=true
+      - ENABLE_SEADOC=false
+      - CACHE_PROVIDER=redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SEAF_SERVER_STORAGE_TYPE=disk
+      - ENABLE_NOTIFICATION_SERVER=false
+      - ENABLE_SEAFILE_AI=false
+    ports:
+      - "127.0.0.1:${SEAFILE_PORT}:80"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1/api2/ping/"]
+      interval: 15s
+      retries: 10
+      start_period: 30s
+
+  archiver:
+    build: ..
+    image: seafile-archiver:dev
+    volumes:
+      - seafile:/shared:ro          # Seafile-Daten und -Konfiguration, nur lesend
+      - ./archiv:/archiv            # Ziel, auf das die Tape Library zugreift
+      - ./data:/data                # Protokoll (SQLite)
+    environment:
+      - TZ=Europe/Berlin
+      - SEAFILE_MYSQL_DB_HOST=mariadb
+      - SEAFILE_MYSQL_DB_USER=archiver           # nur SELECT-Rechte, siehe README
+      - SEAFILE_MYSQL_DB_PASSWORD=archiver-ro-123
+      - SEAFILE_URL=http://seafile
+      - SEAFILE_API_TOKEN=${SEAFILE_ADMIN_TOKEN}
+      - DRY_RUN=${ARCHIVER_DRY_RUN:-true}
+      - DELETE_AFTER_DAYS=${ARCHIVER_DELETE_AFTER_DAYS:-}
+      - MAX_USERS_PER_RUN=${ARCHIVER_MAX_USERS:-5}
+      - HEALTHCHECK_URL=http://hc:8080/ping/test-uuid
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_SECURITY=none
+      - MAIL_FROM=seafile-archiver@example.com
+      - MAIL_TO=it@example.com
+      - SCHEDULE=01:30
+      - ARCHIVE_UID=${ARCHIVER_UID:-}
+      - ARCHIVE_GID=${ARCHIVER_GID:-}
+    depends_on:
+      - seafile
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8026:8025"
+
+  hc:
+    image: mendhak/http-https-echo:latest
+    environment:
+      - HTTP_PORT=8080
+      - LOG_WITHOUT_NEWLINE=true
+
+volumes:
+  mariadb:
+  lldap:
+  seafile:

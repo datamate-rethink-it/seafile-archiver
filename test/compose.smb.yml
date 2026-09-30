@@ -1,0 +1,31 @@
+# SMB-Variante: Archivziel ist eine Samba-Freigabe, vom Host per CIFS eingebunden (wie in einer typischen Produktivumgebung).
+#   COMPOSE_FILE=compose.yml:compose.s3.yml:compose.smb.yml  (oder ohne s3)
+# Samba zuerst starten (docker compose up -d samba), dann den Archiver, sonst schlägt der Mount fehl.
+# SMB_MOUNT_OPTS steuert die Einbindung, z.B. "nomapposix" (Sonderzeichen werden abgelehnt)
+# statt der Standard-Umwandlung in Ersatzzeichen.
+services:
+  samba:
+    image: dockurr/samba:latest
+    environment:
+      - NAME=archiv
+      - USER=archiv
+      - PASS=archiv-smb-123
+    ports:
+      - "127.0.0.1:445:445"
+    volumes:
+      - samba:/storage
+
+  archiver:
+    depends_on:
+      - samba
+    volumes:
+      - archiv-smb:/archiv
+
+volumes:
+  samba:
+  archiv-smb:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: //127.0.0.1/archiv
+      o: "username=archiv,password=archiv-smb-123,vers=3.1.1,uid=0,gid=0${SMB_MOUNT_OPTS:+,}${SMB_MOUNT_OPTS:-}"

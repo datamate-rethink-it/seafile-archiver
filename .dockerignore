@@ -1,0 +1,4 @@
+test/
+.git/
+**/__pycache__/
+*.md

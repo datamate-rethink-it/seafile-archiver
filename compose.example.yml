@@ -1,0 +1,20 @@
+# Beispiel: Einbindung neben einem bestehenden Seafile-Docker-Setup.
+# In COMPOSE_FILE der Seafile-Installation aufnehmen oder separat starten.
+services:
+  seafile-archiver:
+    build: /opt/seafile-archiver
+    image: seafile-archiver:local
+    container_name: seafile-archiver
+    restart: unless-stopped
+    env_file: /opt/seafile-archiver/.env
+    volumes:
+      - ${SEAFILE_VOLUME:-/opt/seafile-data}:/shared:ro   # Seafile-Daten + Konfiguration, nur lesend
+      - /mnt/archiv:/archiv                              # Ziel für die Tape Library
+      - /opt/seafile-archiver/data:/data                 # Protokoll (SQLite)
+    networks:
+      - seafile-net
+
+networks:
+  seafile-net:
+    name: seafile-net
+    external: true
