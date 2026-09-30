@@ -3,11 +3,20 @@
 Archiviert die Bibliotheken **deaktivierter Seafile-User** als normale Dateien und Ordner, zum
 Beispiel für eine Band-Sicherung, und löscht die User danach auf Wunsch aus Seafile.
 
-Typischer Einsatz: Mitarbeiter verlassen das Unternehmen, ihr Account wird im Active Directory
-deaktiviert oder aus der Seafile-Gruppe entfernt. Seafile deaktiviert ihn beim nächsten
-LDAP-Sync. Der Archiver bemerkt das in der nächsten Nacht, schreibt alle Bibliotheken des Users
-in einen Ordner, den die Band-Sicherung abholt, und entfernt den User nach einer Frist aus
+Typischer Einsatz: Ein Mitarbeiter verlässt das Unternehmen, und sein Account wird in Seafile
+deaktiviert. Der Archiver bemerkt das in der nächsten Nacht, schreibt alle Bibliotheken des
+Users in einen Ordner, den die Band-Sicherung abholt, und entfernt den User nach einer Frist aus
 Seafile. Das gibt Speicherplatz und Lizenzen frei.
+
+Wie der User deaktiviert wird, ist egal:
+
+- **Mit LDAP/Active Directory:** Der Account wird im AD deaktiviert oder aus der Seafile-Gruppe
+  entfernt, und Seafile Pro deaktiviert ihn beim nächsten LDAP-Sync
+  (`DEACTIVE_USER_IF_NOTFOUND = True`). Alles läuft automatisch.
+- **Ohne LDAP:** Ein Admin deaktiviert den User in der Seafile-Systemverwaltung. Dafür
+  `ONLY_LDAP_USERS=false` setzen; der Archivordner heißt dann wie die Mailadresse des Users.
+
+**Auf einen Blick:**
 
 - Läuft als eigener Docker-Container neben Seafile, **nur mit Lesezugriff** auf Datenbank und Storage
 - Exportiert den aktuellen Stand jeder Bibliothek, **prüft jeden Datenblock** und schreibt Prüfsummen
@@ -16,7 +25,8 @@ Seafile. Das gibt Speicherplatz und Lizenzen frei.
 
 ```mermaid
 flowchart LR
-    AD[(LDAP / AD)] -- "Sync deaktiviert User" --> DB
+    AD[(LDAP / AD<br/>optional)] -- "Sync deaktiviert User" --> DB
+    ADM([Admin]) -. "deaktiviert User<br/>(ohne LDAP)" .-> DB
     subgraph SF[Seafile]
         DB[(Datenbank)]
         ST[(Storage<br/>Disk oder S3)]
@@ -34,9 +44,9 @@ flowchart LR
 
 - Seafile im Docker-Setup. Der Archiver braucht das Seafile-Volume (Konfiguration und Storage)
   und das Docker-Netz der Datenbank.
-- **Getestet** mit Seafile Pro 13.0.19, Storage auf Disk und S3 (MinIO), Archivziel lokal und SMB.
-  Seafile CE und ältere Versionen sollten funktionieren (gleiches Objektformat und
-  Datenbankschema), sind aber nicht getestet. Für CE ohne LDAP `ONLY_LDAP_USERS=false` setzen.
+- **Getestet** mit Seafile Pro 13.0.19, mit und ohne LDAP, Storage auf Disk und S3 (MinIO),
+  Archivziel lokal und SMB. Seafile CE und ältere Versionen sollten funktionieren (gleiches
+  Objektformat und Datenbankschema), sind aber nicht getestet.
 - Ein Archivverzeichnis mit genug Platz, lokal oder als NFS/SMB-Freigabe eingebunden.
 
 ## So funktioniert es
