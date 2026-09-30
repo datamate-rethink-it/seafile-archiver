@@ -64,7 +64,7 @@ stateDiagram-v2
     deaktiviert --> fehlgeschlagen: Datenblock fehlt,<br/>Speicher voll …
     fehlgeschlagen --> exportiert: nächster Lauf
     exportiert --> exportiert: Bibliothek verändert,<br/>neu exportiert
-    exportiert --> blockiert: verschlüsselte oder<br/>geteilte Bibliothek
+    exportiert --> blockiert: verschlüsselte/geteilte<br/>Bibliothek, eigene Gruppe
     blockiert --> exportiert: Ursache behoben
     exportiert --> gelöscht: Frist abgelaufen<br/>(DELETE_AFTER_DAYS)
     exportiert --> reaktiviert: User wieder aktiv
@@ -78,11 +78,15 @@ stateDiagram-v2
   wird gemeldet und in jedem Lauf erneut versucht; der User wird so lange nicht gelöscht.
 - **Neu exportiert** wird eine Bibliothek, die nach dem Export noch verändert wurde, zum Beispiel
   von Kollegen mit Schreibrecht. Die Löschfrist beginnt dann neu.
-- **Blockiert** ist die Löschung, solange der User eine Bibliothek besitzt, die
-  - verschlüsselt ist (ohne Passwort nicht exportierbar) oder
-  - mit anderen geteilt ist, auch nur ein Unterordner (sonst verlören Kollegen still den
-    Zugriff). Die IT entscheidet in Seafile: auf einen Nachfolger **übertragen** (sie bleibt
-    erhalten) oder die **Freigabe entfernen** (sie wird mit dem User gelöscht).
+- **Blockiert** ist die Löschung, solange der User
+  - eine **verschlüsselte** Bibliothek besitzt (ohne Passwort nicht exportierbar),
+  - eine **geteilte** Bibliothek besitzt, auch wenn nur ein Unterordner geteilt ist (sonst
+    verlören Kollegen still den Zugriff). Die IT entscheidet in Seafile: auf einen Nachfolger
+    **übertragen** (sie bleibt erhalten) oder die **Freigabe entfernen** (sie wird mit dem
+    User gelöscht),
+  - **Besitzer einer Gruppe** ist. Nach dem Löschen wäre die Gruppe verwaist und ließe sich
+    nicht mehr übertragen ([Forum](https://forum.seafile.com/t/issue-when-transferring-groups-from-deleted-user-to-new-owner/14484)).
+    Übertragen über Systemverwaltung → Gruppen → Menü der Gruppe → Übertragen.
 
   Die Blockade wird einmal gemeldet und löst sich im nächsten Lauf von selbst, sobald die
   Ursache behoben ist.
@@ -276,7 +280,11 @@ Alle Einstellungen kommen aus Umgebungsvariablen, eine kommentierte Vorlage ist
 aus der Datenbank und schreibt dessen Verzeichnisbaum Datei für Datei. Gelesen wird mit
 [`seafobj`](https://github.com/haiwen/seafobj), Seafiles eigener Python-Bibliothek, die auch
 Seahub verwendet. Jeder Block wird geprüft (die Block-ID ist der SHA1-Hash seines Inhalts),
-jede Datei auf ihre Größe. Änderungsdaten, leere Dateien und leere Ordner werden übernommen.
+jede Datei auf ihre Größe. So fällt auch eine Datei auf, die Seafile mit voller Größe anzeigt,
+deren Inhalt aber fehlt (bekannt von älteren Mobile-Apps, siehe
+[Forum](https://forum.seafile.com/t/corruption-recovering-0-byte-empty-files-silent-data-loss/24159));
+`seaf-fsck --export` schreibt in diesem Fall laut dem Forumsbericht still eine leere Datei. Änderungsdaten, leere
+Dateien und leere Ordner werden übernommen.
 Der Export entsteht in `.staging` und wird erst nach vollständigem Erfolg an seinen Platz
 verschoben.
 
@@ -288,6 +296,7 @@ Test (Seafile Pro 13.0.19) aber als ungeeignet erwiesen:
 | Fehlende Datenblöcke | exportiert **still einen älteren Stand**, ohne Warnung, Exit-Code 0 |
 | Verschlüsselte Bibliothek | `WARNING … export failed`, trotzdem Exit-Code 0 |
 | Leere Bibliothek | meldet `No available commits … export failed` |
+| Datei ohne Inhalt, aber mit Größe | schreibt still eine leere Datei (laut [Forum](https://forum.seafile.com/t/corruption-recovering-0-byte-empty-files-silent-data-loss/24159), nicht selbst getestet) |
 | Betrieb | braucht das 1,6-GB-Seafile-Image in passender Version |
 
 **Was tun bei einem fehlgeschlagenen Export?** Die Meldung nennt das fehlende oder beschädigte

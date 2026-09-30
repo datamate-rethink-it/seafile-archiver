@@ -106,6 +106,15 @@ class SeafileDB:
         )
         return (rows[0]["repo_id"], rows[0]["version"] or 1, rows[0]["commit_id"]) if rows else None
 
+    def owned_groups(self, email: str) -> list[str]:
+        """Gruppen, deren Besitzer der User ist. Nach dem Löschen des Users wären sie verwaist
+        (keine neuen Freigaben, Übertragung scheitert), siehe forum.seafile.com/t/14484."""
+        rows = self._query(
+            f"SELECT group_name FROM {self.cfg.ccnet_db}.`Group` WHERE creator_name = %s ORDER BY group_name",
+            (email,),
+        )
+        return [r["group_name"] for r in rows]
+
     def owned_repos(self, email: str) -> list[Repo]:
         """Eigene Bibliotheken des Users, ohne virtuelle Repos (Unterordner-Freigaben)."""
         s = self.cfg.seafile_db

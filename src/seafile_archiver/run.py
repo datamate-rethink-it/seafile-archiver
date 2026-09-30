@@ -341,6 +341,10 @@ class Archiver:
                     blockers.append(f"{r.name}: geteilt mit {', '.join(r.shared_with)}, "
                                     "bitte übertragen oder Freigaben entfernen")
 
+            for group in self.db.owned_groups(email):
+                blockers.append(f"Besitzer der Gruppe „{group}“, bitte Gruppe übertragen "
+                                "(Systemverwaltung → Gruppen → Menü der Gruppe → Übertragen)")
+
             if outdated:
                 for r in outdated:
                     self.report.add("outdated", f"{user.label}: {r.name}" + self._shared_note(r))
