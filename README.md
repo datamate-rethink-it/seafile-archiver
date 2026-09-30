@@ -315,3 +315,8 @@ docker compose exec archiver seafile-archiver run --dry-run
 - **SMB:** `compose.smb.yml` ergänzt einen Samba-Server und bindet ihn per CIFS als `/archiv`
   ein. `SMB_MOUNT_OPTS=nomapposix` testet die strenge Variante, bei der SMB Sonderzeichen
   ablehnt.
+
+## Lizenz
+
+[MIT](LICENSE). `seafobj` wird beim Bauen des Images von GitHub geladen und steht unter der
+Apache-2.0-Lizenz.
