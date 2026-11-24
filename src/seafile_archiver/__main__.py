@@ -16,6 +16,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 
+from . import __version__
 from .config import Config, ConfigError
 from .export import check_storage, human
 from .run import run_once
@@ -35,6 +36,7 @@ def next_run(schedule: tuple[str, ...], now: datetime) -> datetime:
 
 
 def cmd_serve(cfg: Config) -> int:
+    log.info("seafile-archiver %s", __version__)
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     if not cfg.schedule:
         log.info("SCHEDULE ist leer: kein eigener Zeitplan, Läufe extern starten (z.B. Ofelia: seafile-archiver run)")
@@ -88,6 +90,7 @@ def cmd_check(cfg: Config) -> int:
         ok &= good
         print(f"[{'OK' if good else 'FEHLER'}] {name}" + (f": {detail}" if detail else ""))
 
+    print(f"seafile-archiver {__version__}\n")
     print("Konfiguration:")
     for f in dataclasses.fields(cfg):
         value = getattr(cfg, f.name)
@@ -146,6 +149,7 @@ def main() -> int:
     )
     parser = argparse.ArgumentParser(prog="seafile-archiver", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("serve")
     p_run = sub.add_parser("run")

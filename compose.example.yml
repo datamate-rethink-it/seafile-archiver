@@ -2,8 +2,8 @@
 # In COMPOSE_FILE der Seafile-Installation aufnehmen oder separat starten.
 services:
   seafile-archiver:
-    build: /opt/seafile-archiver
-    image: seafile-archiver:local
+    # Feste Version: Der Container kann User löschen, Updates deshalb bewusst einspielen
+    image: ghcr.io/datamate-rethink-it/seafile-archiver:0.1.0
     container_name: seafile-archiver
     restart: unless-stopped
     env_file: /opt/seafile-archiver/.env

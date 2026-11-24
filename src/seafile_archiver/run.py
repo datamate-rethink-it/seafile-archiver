@@ -18,7 +18,7 @@ import shutil
 import traceback
 from datetime import datetime, timedelta, timezone
 
-from . import export, notify
+from . import __version__, export, notify
 from .export import human
 from .config import Config
 from .seafile import Repo, SeafileAPI, SeafileDB, User
@@ -101,6 +101,7 @@ class Report:
                     lines.append(line)
         if not self.has_events:
             lines += ["", "Keine Änderungen."]
+        lines += ["", f"seafile-archiver {__version__}"]
         return "\n".join(lines) + "\n"
 
 
