@@ -1,0 +1,5 @@
+# Bewusst akzeptierte Funde des Schwachstellenscans (release.yml).
+# Jeder Eintrag nennt den Grund und läuft ab:
+#
+#   # <warum nicht ausnutzbar>
+#   CVE-2026-12345 exp:2026-12-31

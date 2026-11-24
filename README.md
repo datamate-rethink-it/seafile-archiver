@@ -142,13 +142,15 @@ Verschlüsselte Bibliotheken, nicht exportiert (bitte manuell klären):
 
 ## Installation
 
-**1. Projekt holen und konfigurieren**
+**1. Dateien holen und konfigurieren**
 
 ```bash
-git clone https://github.com/datamate-rethink-it/seafile-archiver /opt/seafile-archiver
+mkdir -p /opt/seafile-archiver/data
 cd /opt/seafile-archiver
-cp .env.example .env    # ausfüllen, siehe „Konfiguration“
-mkdir data
+url=https://raw.githubusercontent.com/datamate-rethink-it/seafile-archiver/0.1.0
+curl -fsSL -o compose.yml $url/compose.example.yml
+curl -fsSL -o .env $url/.env.example    # ausfüllen, siehe „Konfiguration“
+chmod 600 .env
 ```
 
 **2. Datenbank-User mit reinen Leserechten anlegen** (in der MariaDB von Seafile):
@@ -167,11 +169,11 @@ eigenen Systemadmin-Account, damit Löschungen im Seafile-Log nachvollziehbar si
 curl -d username=<admin> -d password=<passwort> https://seafile.example.com/api2/auth-token/
 ```
 
-**4. Container starten.** In `compose.example.yml` die Pfade anpassen: Seafile-Volume,
+**4. Container starten.** In `compose.yml` die Pfade anpassen: Seafile-Volume,
 Archivverzeichnis, Docker-Netz der Seafile-Datenbank. Dann:
 
 ```bash
-docker compose -f compose.example.yml up -d --build
+docker compose up -d
 docker exec seafile-archiver seafile-archiver check
 ```
 
@@ -200,7 +202,8 @@ einmalig bewusst freigegeben:
    - Account soll bleiben: in `EXCLUDE_USERS` eintragen
 4. **Platz prüfen:** Das Archivziel muss die Summe aus Schritt 2 aufnehmen.
 5. **Altbestand exportieren:** Für eine Nacht `MAX_USERS_PER_RUN` hochsetzen und
-   `DRY_RUN=false`, Container neu starten. Bricht der Lauf ab, macht der nächste mit den
+   `DRY_RUN=false`, Container mit `docker compose up -d` neu erstellen (`restart` übernimmt die
+   `.env` nicht). Bricht der Lauf ab, macht der nächste mit den
    restlichen Usern weiter. Stichprobe mit `sha256sum -c _SHA256SUMS`, dann auf Band sichern.
 6. **Normalbetrieb:** `MAX_USERS_PER_RUN` zurück auf den normalen Wert. Ab jetzt werden nur
    neu deaktivierte User archiviert.
@@ -220,6 +223,10 @@ docker exec seafile-archiver seafile-archiver status                       # Use
 
 Der Container startet die Läufe selbst zu den Zeiten in `SCHEDULE`. Mit leerem `SCHEDULE` kann
 man sie auch extern auslösen, z.B. per Ofelia `job-exec` mit `seafile-archiver run`.
+
+**Update:** Version in `compose.yml` ändern, dann `docker compose up -d`, `check` und
+`run --dry-run`. Es gibt bewusst kein `latest`. Welche Version läuft, zeigt
+`seafile-archiver --version`; sie steht auch im Bericht.
 
 ## Konfiguration
 
@@ -335,7 +342,24 @@ docker compose exec archiver seafile-archiver run --dry-run
   ein. `SMB_MOUNT_OPTS=nomapposix` testet die strenge Variante, bei der SMB Sonderzeichen
   ablehnt.
 
+### Release
+
+Ein Versions-Tag (`1.2.3` oder `1.2.3-rc.1`) baut das Image und veröffentlicht es
+(`.github/workflows/release.yml`). Das Image wird zuerst nur per Digest hochgeladen und bekommt die
+Version erst nach Ruff, Unit-Tests, Smoke-Test, Lizenz- und Schwachstellenscan. SBOM und Digest
+hängen am GitHub-Release, das Image ist mit Cosign signiert. Ausnahmen für den Scan stehen mit
+Begründung und Ablaufdatum in `.trivyignore`.
+
+Export und Löschung gegen ein echtes Seafile prüfen die Workflows nicht: vor jedem Release die
+Testumgebung oben durchlaufen und die Version in `compose.example.yml` und im Abschnitt
+„Installation“ anpassen.
+
+```bash
+docker build --target test .                        # Unit-Tests
+docker build -t seafile-archiver:dev . && scripts/smoke.sh seafile-archiver:dev
+```
+
 ## Lizenz
 
 [MIT](LICENSE). `seafobj` wird beim Bauen des Images von GitHub geladen und steht unter der
-Apache-2.0-Lizenz.
+Apache-2.0-Lizenz (Text im Image unter `/usr/share/doc/seafobj`).

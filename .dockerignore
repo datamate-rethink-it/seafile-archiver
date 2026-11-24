@@ -2,3 +2,7 @@ test/
 .git/
 **/__pycache__/
 *.md
+.github/
+scripts/
+.env
+data/
